@@ -26,13 +26,13 @@ void setup() {
  // Configure bluetooth connection rate
   Serial.begin(9600); 
 }
-
+ 
+  
 void loop(){
- // Check for input
-  if (Serial.available() > 0) {
+  // Check for input
+if (Serial.available() > 0) {
     bufferInt = Serial.read();
-
-     if (bufferInt == '1') {
+if (bufferInt == '1') {
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
 
@@ -64,6 +64,7 @@ void loop(){
   analogWrite(11, 255);   //Moves CH B
   
   delay(delaylegnth);
+
      }
 }
 }
