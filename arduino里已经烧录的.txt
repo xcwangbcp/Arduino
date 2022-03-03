@@ -1,0 +1,13 @@
+Motor_Shield_1-Channel_DC_Motor
+功能：全速向前3000s？
+      停转1000？
+      半速向后3000
+      停转1000
+
+what we want:
+     全速向前若干秒（some certain time can get the tip to position A）
+     停若干秒
+     全速向后 (some certain time can get the tip to position B)
+     停若干秒
+  
+     
