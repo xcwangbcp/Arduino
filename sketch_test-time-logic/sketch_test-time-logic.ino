@@ -12,7 +12,7 @@ https://www.instructables.com/id/Arduino-Motor-Sh...</a>
 
 *************************************************************/
 
-int delaylegnth = 20;
+int delaylegnth = 10;
 int bufferInt = -1;
 
 
@@ -36,52 +36,117 @@ void setup() {
  
   
 void loop(){
-int nbstep =200;
+int nbstep =50;
 int sensorVal=1;
+int i=0;
  
   // Check for input
 if (Serial.available() > 0) {
     bufferInt = Serial.read();
 if (bufferInt == '1') {
-  for(int i=0; i<nbstep; i++){
+  sensorVal =digitalRead(4);
+  
+  while (sensorVal==HIGH) {
+  sensorVal =digitalRead(4);
+  Serial.println("channel4 out");
+  Serial.println(sensorVal);
+ 
+  i++;
+  //for(int i=0; i<nbstep; i++){
+   if (sensorVal==LOW) {
+  digitalWrite(9, HIGH);  //DISABLE CH A
+  analogWrite(3, 0);      //stop Move CH A
+  digitalWrite(8, HIGH); //DISABLE CH B
+  analogWrite(11, 0);   //stop Move CH B
+  delay(delaylegnth);
+    break;
+  }
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   digitalWrite(12, HIGH);   //Sets direction of CH A
   analogWrite(3, 255);   //Moves CH A
   delay(delaylegnth);
+sensorVal =digitalRead(4);
+if (sensorVal==LOW) {
+  digitalWrite(9, HIGH);  //DISABLE CH A
+  analogWrite(3, 0);      //stop Move CH A
+  digitalWrite(8, HIGH); //DISABLE CH B
+  analogWrite(11, 0);   //stop Move CH B
+  delay(delaylegnth);
+    break;
+  }
   
   digitalWrite(9, HIGH);  //DISABLE CH A
   digitalWrite(8, LOW); //ENABLE CH B
   digitalWrite(13, LOW);   //Sets direction of CH B
   analogWrite(11, 255);   //Moves CH B
   delay(delaylegnth);
+
+ sensorVal =digitalRead(4);
+  if (sensorVal==LOW) {
+  digitalWrite(9, HIGH);  //DISABLE CH A
+  analogWrite(3, 0);      //stop Move CH A
+  digitalWrite(8, HIGH); //DISABLE CH B
+  analogWrite(11, 0);   //stop Move CH B
+  delay(delaylegnth);
+    break;
+  }
   
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   digitalWrite(12, LOW);   //Sets direction of CH A
   analogWrite(3, 255);   //Moves CH A
   delay(delaylegnth);
-    
+
+   sensorVal =digitalRead(4);
+   if (sensorVal==LOW) {
+  digitalWrite(9, HIGH);  //DISABLE CH A
+  analogWrite(3, 0);      //stop Move CH A
+  digitalWrite(8, HIGH); //DISABLE CH B
+  analogWrite(11, 0);   //stop Move CH B
+  delay(delaylegnth);
+    break;
+  }
+  
   digitalWrite(9, HIGH);  //DISABLE CH A
   digitalWrite(8, LOW); //ENABLE CH B
   digitalWrite(13, HIGH);   //Sets direction of CH B
   analogWrite(11, 255);   //Moves CH B
   delay(delaylegnth);
-  Serial.println("motor step" );Serial.println(i);
-  //
-  
+
   sensorVal =digitalRead(4);
-  Serial.println("channel4 out");
-  Serial.println(sensorVal);
   if (sensorVal==LOW) {
+  digitalWrite(9, HIGH);  //DISABLE CH A
+  analogWrite(3, 0);      //stop Move CH A
+  digitalWrite(8, HIGH); //DISABLE CH B
+  analogWrite(11, 0);   //stop Move CH B
+  delay(delaylegnth);
+    break;
+  }
+  
+  Serial.println("motor step" );
+  Serial.println(i);
+
+  if (i>10){
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);   //stop Move CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   analogWrite(11, 0);   //stop Move CH B
-
-    break;
+  delay(delaylegnth);
+  break;
   }
-     }
+  //
+  //}
+  }
+//else{
+  //Serial.println("channel4 out");
+  //Serial.println(sensorVal);
+  //digitalWrite(9, HIGH);  //DISABLE CH A
+  //analogWrite(3, 0);   //stop Move CH A
+  //digitalWrite(8, HIGH); //DISABLE CH B
+  //analogWrite(11, 0);   //stop Move CH B
+  //}
+  
 }
 }
 }
