@@ -12,10 +12,13 @@ https://www.instructables.com/id/Arduino-Motor-Sh...</a>
 
 *************************************************************/
 
-int delaylegnth = 10;
+int delaylegnth = 2;
 int bufferInt = -1;
+int nbstep =50;
+int sensorVal=1;
 
-
+const long interval = 5;   
+unsigned long previousMillis = 0;
   
 void setup() {
   
@@ -36,53 +39,50 @@ void setup() {
  
   
 void loop(){
-int nbstep =50;
-int sensorVal=1;
 int i=0;
- 
   // Check for input
 if (Serial.available() > 0) {
     bufferInt = Serial.read();
 if (bufferInt == '1') {
-  sensorVal =digitalRead(4);
   
-  while (sensorVal==HIGH) {
   sensorVal =digitalRead(4);
-  Serial.println("channel4 out");
-  Serial.println(sensorVal);
- 
-  i++;
-  //for(int i=0; i<nbstep; i++){
-   if (sensorVal==LOW) {
-  digitalWrite(9, HIGH);  //DISABLE CH A
-  analogWrite(3, 0);      //stop Move CH A
-  digitalWrite(8, HIGH); //DISABLE CH B
-  analogWrite(11, 0);   //stop Move CH B
-  delay(delaylegnth);
-    break;
-  }
+ while (sensorVal==HIGH) {
+  Serial.println("channel4 out");Serial.println(sensorVal);
+  
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   digitalWrite(12, HIGH);   //Sets direction of CH A
   analogWrite(3, 255);   //Moves CH A
-  delay(delaylegnth);
-sensorVal =digitalRead(4);
-if (sensorVal==LOW) {
+  //delay(delaylegnth);
+
+  sensorVal =digitalRead(4);
+  Serial.println("channel4 out");Serial.println(sensorVal);
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= delaylegnth) {
+    previousMillis = currentMillis;
+  if (sensorVal==LOW) {
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);      //stop Move CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   analogWrite(11, 0);   //stop Move CH B
   delay(delaylegnth);
     break;
+  } 
   }
+  Serial.println("A");
   
   digitalWrite(9, HIGH);  //DISABLE CH A
   digitalWrite(8, LOW); //ENABLE CH B
   digitalWrite(13, LOW);   //Sets direction of CH B
   analogWrite(11, 255);   //Moves CH B
-  delay(delaylegnth);
-
- sensorVal =digitalRead(4);
+  //delay(delaylegnth);
+  
+  sensorVal =digitalRead(4);
+  Serial.println("channel4 out");Serial.println(sensorVal);
+  currentMillis = millis();
+  if (currentMillis - previousMillis >= delaylegnth) {
+    // save the last time you blinked the LED
+    previousMillis = currentMillis;
   if (sensorVal==LOW) {
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);      //stop Move CH A
@@ -90,31 +90,43 @@ if (sensorVal==LOW) {
   analogWrite(11, 0);   //stop Move CH B
   delay(delaylegnth);
     break;
+  } 
   }
-  
+ Serial.println("B-");
+ 
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   digitalWrite(12, LOW);   //Sets direction of CH A
   analogWrite(3, 255);   //Moves CH A
-  delay(delaylegnth);
-
-   sensorVal =digitalRead(4);
-   if (sensorVal==LOW) {
+  //delay(delaylegnth);
+  sensorVal =digitalRead(4);
+  Serial.println("channel4 out");Serial.println(sensorVal);
+  currentMillis = millis();
+  if (currentMillis - previousMillis >= delaylegnth) {
+    // save the last time you blinked the LED
+    previousMillis = currentMillis;
+  if (sensorVal==LOW) {
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);      //stop Move CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   analogWrite(11, 0);   //stop Move CH B
   delay(delaylegnth);
-    break;
+  break;
+  } 
   }
-  
+  Serial.println("A-");
+ 
   digitalWrite(9, HIGH);  //DISABLE CH A
   digitalWrite(8, LOW); //ENABLE CH B
   digitalWrite(13, HIGH);   //Sets direction of CH B
   analogWrite(11, 255);   //Moves CH B
-  delay(delaylegnth);
-
+  //delay(delaylegnth);
   sensorVal =digitalRead(4);
+  Serial.println("channel4 out");Serial.println(sensorVal);
+  currentMillis = millis();
+  if (currentMillis - previousMillis >= delaylegnth) {
+    // save the last time you blinked the LED
+    previousMillis = currentMillis;
   if (sensorVal==LOW) {
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);      //stop Move CH A
@@ -122,12 +134,13 @@ if (sensorVal==LOW) {
   analogWrite(11, 0);   //stop Move CH B
   delay(delaylegnth);
     break;
+  } 
   }
+ Serial.println("B");
+  i++;
+  Serial.println("motor step" );Serial.println(i);
   
-  Serial.println("motor step" );
-  Serial.println(i);
-
-  if (i>10){
+  if (i>7){
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);   //stop Move CH A
   digitalWrite(8, HIGH); //DISABLE CH B
