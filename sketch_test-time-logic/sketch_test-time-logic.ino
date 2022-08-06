@@ -31,7 +31,7 @@ void setup() {
   pinMode(8, OUTPUT); //brake (disable) CH B
   
   // establish the omron reader pins
-  pinMode(4, INPUT); //read the omron sensor
+  pinMode(7, INPUT); //read the omron sensor
   
  // Configure bluetooth connection rate
   Serial.begin(9600); 
@@ -43,11 +43,13 @@ int i=0;
   // Check for input
 if (Serial.available() > 0) {
     bufferInt = Serial.read();
+    Serial.println("Serial.read");Serial.println(bufferInt);
 if (bufferInt == '1') {
   
-  sensorVal =digitalRead(4);
+  sensorVal =digitalRead(7);
  while (sensorVal==HIGH) {
-  Serial.println("channel4 out");Serial.println(sensorVal);
+  //Serial.println("channel7 out");
+  //Serial.println(sensorVal);
   
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
@@ -55,8 +57,9 @@ if (bufferInt == '1') {
   analogWrite(3, 255);   //Moves CH A
   //delay(delaylegnth);
 
-  sensorVal =digitalRead(4);
-  Serial.println("channel4 out");Serial.println(sensorVal);
+  sensorVal =digitalRead(7);
+  //Serial.println("channel7 out");
+  //Serial.println(sensorVal);
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= delaylegnth) {
     previousMillis = currentMillis;
@@ -77,8 +80,9 @@ if (bufferInt == '1') {
   analogWrite(11, 255);   //Moves CH B
   //delay(delaylegnth);
   
-  sensorVal =digitalRead(4);
-  Serial.println("channel4 out");Serial.println(sensorVal);
+  sensorVal =digitalRead(7);
+  //Serial.println("channel7 out");
+  //Serial.println(sensorVal);
   currentMillis = millis();
   if (currentMillis - previousMillis >= delaylegnth) {
     // save the last time you blinked the LED
@@ -99,8 +103,9 @@ if (bufferInt == '1') {
   digitalWrite(12, LOW);   //Sets direction of CH A
   analogWrite(3, 255);   //Moves CH A
   //delay(delaylegnth);
-  sensorVal =digitalRead(4);
-  Serial.println("channel4 out");Serial.println(sensorVal);
+  sensorVal =digitalRead(7);
+  //Serial.println("channel7 out");
+  //Serial.println(sensorVal);
   currentMillis = millis();
   if (currentMillis - previousMillis >= delaylegnth) {
     // save the last time you blinked the LED
@@ -121,8 +126,9 @@ if (bufferInt == '1') {
   digitalWrite(13, HIGH);   //Sets direction of CH B
   analogWrite(11, 255);   //Moves CH B
   //delay(delaylegnth);
-  sensorVal =digitalRead(4);
-  Serial.println("channel4 out");Serial.println(sensorVal);
+  sensorVal =digitalRead(7);
+  //Serial.println("channel7 out");
+  //Serial.println(sensorVal);
   currentMillis = millis();
   if (currentMillis - previousMillis >= delaylegnth) {
     // save the last time you blinked the LED
@@ -145,14 +151,14 @@ if (bufferInt == '1') {
   analogWrite(3, 0);   //stop Move CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   analogWrite(11, 0);   //stop Move CH B
-  delay(delaylegnth);
+  //delay(delaylegnth);
   break;
   }
   //
   //}
   }
 //else{
-  //Serial.println("channel4 out");
+  //Serial.println("channel7 out");
   //Serial.println(sensorVal);
   //digitalWrite(9, HIGH);  //DISABLE CH A
   //analogWrite(3, 0);   //stop Move CH A

@@ -1,4 +1,3 @@
-
 /*************************************************************
 Motor Shield Stepper Demo
 by Randy Sarafan
@@ -34,7 +33,8 @@ if (Serial.available() > 0) {
     bufferInt = Serial.read();
     Serial.println("Serial.read");
     Serial.println(bufferInt);
-if (bufferInt == '1') {
+    switch (bufferInt){
+  case '1':
   for(int i=0; i<nbstep; i++){
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
@@ -63,14 +63,19 @@ if (bufferInt == '1') {
   analogWrite(11, 255);   //Moves CH B
   
   delay(delaylegnth);
-  Serial.println("motor step");
-  Serial.println(i);
+  //Serial.println("motor step");
+  //Serial.println(i);
      }
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);   //stop Move CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   analogWrite(11, 0);   //stop Move CH B 
- 
+ break;
+ case '2':
+ bufferInt = Serial.read();
+    Serial.println("Serial.read");
+    Serial.println(bufferInt);
+    break;
 }
 }
 }
