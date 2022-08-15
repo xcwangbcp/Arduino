@@ -5,7 +5,7 @@ by Randy Sarafan
 For more information see:
 <a href="https://www.instructables.com/id/Arduino-Motor-Shield-Tutorial/">
 https://www.instructables.com/id/Arduino-Motor-Sh...</a>
-
+https://www.programmingelectronics.com/avrdude-stk500_recv/
 *************************************************************/
 
 int delaylegnth = 30;

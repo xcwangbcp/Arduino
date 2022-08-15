@@ -16,9 +16,8 @@ int delaylegnth = 20;
 int bufferInt = -1;
 int nbstep =7;
 int sensorVal=1;
-
-const long interval = 5;   
 unsigned long previousMillis = 0;
+
   
 void setup() {
   
@@ -39,25 +38,25 @@ void setup() {
  
   
 void loop(){
-int i=0;
+int nbstep =7;
+int sensorVal=1;
+ 
   // Check for input
 if (Serial.available() > 0) {
     bufferInt = Serial.read();
-    //Serial.println("Serial.read");Serial.println(bufferInt);
 if (bufferInt == '1') {
-
-while(sensorVal==HIGH) {
-  //Serial.println("channel7 out");
-  //Serial.println(sensorVal);
-  
+   sensorVal =digitalRead(7);
+if (sensorVal==HIGH){
+  for(int i=0; i<nbstep; i++){
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   digitalWrite(12, HIGH);   //Sets direction of CH A
   analogWrite(3, 255);   //Moves CH A
+  //delay(delaylegnth);
+  sensorVal =digitalRead(7);
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= delaylegnth) {
     previousMillis = currentMillis;
-    sensorVal =digitalRead(7);
   if (sensorVal==LOW) {
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);      //stop Move CH A
@@ -67,17 +66,17 @@ while(sensorVal==HIGH) {
     break;
   } 
   }
-  //Serial.println("A");
   
   digitalWrite(9, HIGH);  //DISABLE CH A
   digitalWrite(8, LOW); //ENABLE CH B
   digitalWrite(13, LOW);   //Sets direction of CH B
   analogWrite(11, 255);   //Moves CH B
+  //delay(delaylegnth);
+
+  sensorVal =digitalRead(7);
   currentMillis = millis();
   if (currentMillis - previousMillis >= delaylegnth) {
-    // save the last time you blinked the LED
     previousMillis = currentMillis;
-    sensorVal =digitalRead(7);
   if (sensorVal==LOW) {
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);      //stop Move CH A
@@ -87,39 +86,17 @@ while(sensorVal==HIGH) {
     break;
   } 
   }
- //Serial.println("B-");
- 
+  
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   digitalWrite(12, LOW);   //Sets direction of CH A
   analogWrite(3, 255);   //Moves CH A
-
+  //delay(delaylegnth);
+  
+  sensorVal =digitalRead(7);
   currentMillis = millis();
   if (currentMillis - previousMillis >= delaylegnth) {
-    // save the last time you blinked the LED
-  previousMillis = currentMillis;
-  sensorVal =digitalRead(7);
-  if (sensorVal==LOW) {
-  digitalWrite(9, HIGH);  //DISABLE CH A
-  analogWrite(3, 0);      //stop Move CH A
-  digitalWrite(8, HIGH); //DISABLE CH B
-  analogWrite(11, 0);   //stop Move CH B
-  delay(delaylegnth);
-  break;
-  } 
-  }
-  //Serial.println("A-");
- 
-  digitalWrite(9, HIGH);  //DISABLE CH A
-  digitalWrite(8, LOW); //ENABLE CH B
-  digitalWrite(13, HIGH);   //Sets direction of CH B
-  analogWrite(11, 255);   //Moves CH B
-
-  currentMillis = millis();
-  if (currentMillis - previousMillis >= delaylegnth) {
-    // save the last time you blinked the LED
-  previousMillis = currentMillis;
-  sensorVal =digitalRead(7);
+    previousMillis = currentMillis;
   if (sensorVal==LOW) {
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);      //stop Move CH A
@@ -129,19 +106,38 @@ while(sensorVal==HIGH) {
     break;
   } 
   }
- //Serial.println("B");
-  i++;
+    
+  digitalWrite(9, HIGH);  //DISABLE CH A
+  digitalWrite(8, LOW); //ENABLE CH B
+  digitalWrite(13, HIGH);   //Sets direction of CH B
+  analogWrite(11, 255);   //Moves CH B
+  //delay(delaylegnth);
   //Serial.println("motor step" );Serial.println(i);
   
-  if (i>7){
+  sensorVal =digitalRead(7);
+  currentMillis = millis();
+  if (currentMillis - previousMillis >= delaylegnth) {
+    previousMillis = currentMillis;
+  if (sensorVal==LOW) {
+  digitalWrite(9, HIGH);  //DISABLE CH A
+  analogWrite(3, 0);      //stop Move CH A
+  digitalWrite(8, HIGH); //DISABLE CH B
+  analogWrite(11, 0);   //stop Move CH B
+  delay(delaylegnth);
+    break;
+  } 
+  }
+  
+  if (i>nbstep){
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);   //stop Move CH A
   digitalWrite(8, HIGH); //DISABLE CH B
   analogWrite(11, 0);   //stop Move CH B
   delay(delaylegnth);
   break;
-  }
-  }
-}
+     } //end if
+}// end for
+}// end sensor if
+}// end BT if
 }
 }

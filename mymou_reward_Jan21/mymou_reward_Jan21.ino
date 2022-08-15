@@ -1,3 +1,7 @@
+
+
+
+
 // Initialise variables
 int channelTwo = 2;
 int channelThree = 3;
@@ -30,7 +34,10 @@ void loop() {
   if (Serial.available() > 0) {
 
     bufferInt = Serial.read();
-
+    
+    
+    Serial.println("Serial.read");
+    Serial.println(bufferInt);
     if (bufferInt == '0') {
       digitalWrite(channelTwo, LOW);
       digitalWrite(channelThree, LOW);

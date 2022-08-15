@@ -6,12 +6,12 @@ by Randy Sarafan
 For more information see:
 <a href="https://www.instructables.com/id/Arduino-Motor-Shield-Tutorial/">
 https://www.instructables.com/id/Arduino-Motor-Sh...</a>
-
+8/15 测试ok
 *************************************************************/
 
 int delaylegnth = 30;
 int bufferInt = -1;
-int nbstep = 8;//2022-3-2经测试，可以控制motor的转动为25圈（？）
+int nbstep = 7;//2022-3-2经测试，可以控制motor的转动为25圈（？）
   
 void setup() {
   

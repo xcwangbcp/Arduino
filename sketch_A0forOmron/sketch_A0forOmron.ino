@@ -1,6 +1,7 @@
 //just read out either a digital or a analog input and print it out
 // work as a potentialometer,as the volts will change after connected to a 
 //diffrent circuits.by xiaochun wang 
+// 8/15 test good
 
 int analogPin = A0; // potentiometer wiper (middle terminal) connected to analog pin 3
                     // outside leads to ground and +5V
@@ -24,7 +25,7 @@ if (bufferInt == '1') {
     valA = analogRead(analogPin);  // read the input pin
     valD =digitalRead(digitalPin);
     delay(delaylegnth);
-    Serial.println(valA*5/1024);          // debug value
+    //Serial.println(valA*5/1024);          // debug value
     Serial.println(valD );
 }
 }
