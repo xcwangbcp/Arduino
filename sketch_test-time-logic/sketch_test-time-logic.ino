@@ -12,12 +12,13 @@ https://www.instructables.com/id/Arduino-Motor-Sh...</a>
 
 *************************************************************/
 
-int delaylegnth = 20;
+int delaylegnth = 100;
 int bufferInt = -1;
-int nbstep =7;
+int nbstep =2;
 int sensorVal=1;
 
 const long interval = 5;   
+
 unsigned long previousMillis = 0;
   
 void setup() {
@@ -36,112 +37,135 @@ void setup() {
  // Configure bluetooth connection rate
   Serial.begin(9600); 
 }
- 
   
 void loop(){
-int i=0;
+int sensorVal=1;
   // Check for input
 if (Serial.available() > 0) {
     bufferInt = Serial.read();
     //Serial.println("Serial.read");Serial.println(bufferInt);
 if (bufferInt == '1') {
-
-while(sensorVal==HIGH) {
   //Serial.println("channel7 out");
   //Serial.println(sensorVal);
-  
+for (int i=0;i<nbstep;i++){
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
-  digitalWrite(12, HIGH);   //Sets direction of CH A
+  digitalWrite(12, HIGH);//Sets direction of CH A
   analogWrite(3, 255);   //Moves CH A
+  Serial.println("A");
+  sensorVal = digitalRead(7);
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= delaylegnth) {
+  Serial.println(currentMillis);
+  int dif = currentMillis - previousMillis;
+  while(dif >= delaylegnth) {
     previousMillis = currentMillis;
-    sensorVal =digitalRead(7);
+    Serial.println(i);
+    Serial.println("previousMillis");
+    Serial.println(previousMillis);
+    if 
+  //Serial.println("channel 7");
+  //Serial.println(sensorVal);
   if (sensorVal==LOW) {
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);      //stop Move CH A
-  digitalWrite(8, HIGH); //DISABLE CH B
-  analogWrite(11, 0);   //stop Move CH B
+  digitalWrite(8, HIGH);  //DISABLE CH B
+  analogWrite(11, 0);     //stop Move CH B
   delay(delaylegnth);
-    break;
+  Serial.println("break");
+  break;
   } 
   }
-  //Serial.println("A");
-  
-  digitalWrite(9, HIGH);  //DISABLE CH A
-  digitalWrite(8, LOW); //ENABLE CH B
-  digitalWrite(13, LOW);   //Sets direction of CH B
-  analogWrite(11, 255);   //Moves CH B
-  currentMillis = millis();
-  if (currentMillis - previousMillis >= delaylegnth) {
-    // save the last time you blinked the LED
-    previousMillis = currentMillis;
-    sensorVal =digitalRead(7);
-  if (sensorVal==LOW) {
-  digitalWrite(9, HIGH);  //DISABLE CH A
-  analogWrite(3, 0);      //stop Move CH A
-  digitalWrite(8, HIGH); //DISABLE CH B
-  analogWrite(11, 0);   //stop Move CH B
-  delay(delaylegnth);
-    break;
-  } 
-  }
- //Serial.println("B-");
+
  
+ digitalWrite(9, HIGH);  //DISABLE CH A
+ digitalWrite(8, LOW);   //ENABLE CH B
+ digitalWrite(13, LOW);  //Sets direction of CH B
+ analogWrite(11, 255);   //Moves CH B
+ Serial.println("B-");
+ sensorVal =digitalRead(7);
+ //Serial.println("channel 7");
+ //Serial.println(sensorVal);
+ currentMillis = millis();
+ Serial.println(currentMillis);
+ if (currentMillis - previousMillis >= delaylegnth) {
+    previousMillis = currentMillis;
+   Serial.println(i);
+   Serial.println("previousMillis");
+   Serial.println(previousMillis);
+   
+  if (sensorVal==LOW) {
+  digitalWrite(9, HIGH);  //DISABLE CH A
+  analogWrite(3, 0);      //stop Move CH A
+  digitalWrite(8, HIGH);  //DISABLE CH B
+  analogWrite(11, 0);    //stop Move CH B
+  delay(delaylegnth);
+  Serial.println("break");
+  break;
+  } 
+  }
+
+  
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
-  digitalWrite(12, LOW);   //Sets direction of CH A
+  digitalWrite(12, LOW); //Sets direction of CH A
   analogWrite(3, 255);   //Moves CH A
-
+  Serial.println("A-");
+  //sensorVal =digitalRead(7);
+  //Serial.println("channel 7");
+  //Serial.println(sensorVal);
   currentMillis = millis();
+ Serial.println(currentMillis);
   if (currentMillis - previousMillis >= delaylegnth) {
-    // save the last time you blinked the LED
   previousMillis = currentMillis;
-  sensorVal =digitalRead(7);
+  Serial.println("previousMillis");
+  Serial.println(previousMillis);
+ 
   if (sensorVal==LOW) {
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);      //stop Move CH A
-  digitalWrite(8, HIGH); //DISABLE CH B
-  analogWrite(11, 0);   //stop Move CH B
+  digitalWrite(8, HIGH);  //DISABLE CH B
+  analogWrite(11, 0);     //stop Move CH B
   delay(delaylegnth);
+  Serial.println("break");
   break;
   } 
   }
-  //Serial.println("A-");
+  
  
   digitalWrite(9, HIGH);  //DISABLE CH A
-  digitalWrite(8, LOW); //ENABLE CH B
-  digitalWrite(13, HIGH);   //Sets direction of CH B
+  digitalWrite(8, LOW);   //ENABLE CH B
+  digitalWrite(13, HIGH); //Sets direction of CH B
   analogWrite(11, 255);   //Moves CH B
-
-  currentMillis = millis();
-  if (currentMillis - previousMillis >= delaylegnth) {
-    // save the last time you blinked the LED
-  previousMillis = currentMillis;
+  Serial.println("B");
   sensorVal =digitalRead(7);
+  //Serial.println("channel 7");
+  //Serial.println(sensorVal);
+  currentMillis = millis();
+  Serial.println(currentMillis);
+  if (currentMillis - previousMillis >= delaylegnth) {
+  previousMillis = currentMillis;
+  Serial.println("previousMillis");
+  Serial.println(previousMillis);
+
   if (sensorVal==LOW) {
   digitalWrite(9, HIGH);  //DISABLE CH A
   analogWrite(3, 0);      //stop Move CH A
-  digitalWrite(8, HIGH); //DISABLE CH B
-  analogWrite(11, 0);   //stop Move CH B
+  digitalWrite(8, HIGH);  //DISABLE CH B
+  analogWrite(11, 0);     //stop Move CH B
   delay(delaylegnth);
-    break;
+  Serial.println("break");
+  break;
   } 
   }
- //Serial.println("B");
-  i++;
-  //Serial.println("motor step" );Serial.println(i);
-  
-  if (i>7){
-  digitalWrite(9, HIGH);  //DISABLE CH A
-  analogWrite(3, 0);   //stop Move CH A
-  digitalWrite(8, HIGH); //DISABLE CH B
-  analogWrite(11, 0);   //stop Move CH B
-  delay(delaylegnth);
-  break;
-  }
-  }
+  Serial.println(i);
 }
+
+  digitalWrite(9, HIGH);  //DISABLE CH A
+  analogWrite(3, 0);      //stop Move CH A
+  digitalWrite(8, HIGH);  //DISABLE CH B
+  analogWrite(11, 0);     //stop Move CH B
+  delay(delaylegnth);
+  Serial.println("stop motor");
+  }
 }
 }
