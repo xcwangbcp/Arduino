@@ -10,3 +10,4 @@
 1.确认arduino的数字端的输入电压值：less than 5v
 2.sensor读取的coding part （constants - Arduino Reference）！
 3.Sensor的电路改装，之前电阻为220欧姆，今调整为1K欧姆
+4.圆头的输入电压为7-12v，有一个内置芯片，可以把外源的电压降至5v的工作电压
