@@ -1,6 +1,6 @@
 # Arduino
 ##   pellet dispenser  
-##摘要：设计一款可以实时检测猴子执行任务状态，并给与固体颗粒奖励的装置，
+## 摘要：设计一款可以实时检测猴子执行任务状态，并给与固体颗粒奖励的装置，
 #硬件：使用pad输出实验刺激，feedback是否奖励，蓝牙+arduino，光电感应器用来检测一次成功的食物掉落，motorshield控制stepper的运动
 #软件：mymou+arduino code
 #开发记录：
