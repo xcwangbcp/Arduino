@@ -12,7 +12,7 @@
 
 *************************************************************/
 
-int delaylegnth = 20;
+int delaylegnth = 30;
 int bufferInt   = -1;
 int nbstep      = 7;
 int sensorVal   = 1;
@@ -50,13 +50,17 @@ void loop() {
         analogWrite(3, 255);   //Moves CH A
         //Serial.println("A");
 
-        while (sensorVal > 0) {
+        while (sensorVal == 1) { 
           unsigned long currentMillis = millis();
           //Serial.println("currentMillis");
           //Serial.println(currentMillis);
           sensorVal = digitalRead(7);
-          if (sensorVal == LOW) {
-            stopStepper;
+          if (sensorVal == 0) {
+            digitalWrite(9, HIGH);  //DISABLE CH A
+            analogWrite(3, 0);      //stop Move CH A
+            digitalWrite(8, HIGH);  //DISABLE CH B
+            analogWrite(11, 0);     //stop Move CH B
+            delay(delaylegnth);
             break;
           }
           if (currentMillis - previousMillis >= delaylegnth) {
@@ -70,11 +74,15 @@ void loop() {
         digitalWrite(13, LOW);  //Sets direction of CH B
         analogWrite(11, 255);   //Moves CH B
         //Serial.println("B");
-        while (sensorVal > 0) {
+        while (sensorVal == 1) {
           unsigned long currentMillis = millis();
           sensorVal = digitalRead(7);
-          if (sensorVal == LOW) {
-            stopStepper;
+          if (sensorVal == 0) {
+            digitalWrite(9, HIGH);  //DISABLE CH A
+            analogWrite(3, 0);      //stop Move CH A
+            digitalWrite(8, HIGH);  //DISABLE CH B
+            analogWrite(11, 0);     //stop Move CH B
+            delay(delaylegnth);
             break;
           }
           if (currentMillis - previousMillis >= delaylegnth) {
@@ -89,11 +97,15 @@ void loop() {
         digitalWrite(12, LOW); //Sets direction of CH A
         analogWrite(3, 255);   //Moves CH A
         //Serial.println("A-");
-        while (sensorVal > 0) {
+        while (sensorVal == 1) {
           unsigned long currentMillis = millis();
           sensorVal = digitalRead(7);
-          if (sensorVal == LOW) {
-            stopStepper;
+          if (sensorVal == 0) {
+            digitalWrite(9, HIGH);  //DISABLE CH A
+            analogWrite(3, 0);      //stop Move CH A
+            digitalWrite(8, HIGH);  //DISABLE CH B
+            analogWrite(11, 0);     //stop Move CH B
+            delay(delaylegnth);
             break;
           }
           if (currentMillis - previousMillis >= delaylegnth) {
@@ -107,11 +119,15 @@ void loop() {
         digitalWrite(13, HIGH); //Sets direction of CH B
         analogWrite(11, 255);   //Moves CH B
         //Serial.println("B-");
-        while (sensorVal > 0) {
+        while (sensorVal == 1) {
           unsigned long currentMillis = millis();
           sensorVal = digitalRead(7);
-          if (sensorVal == LOW) {
-            stopStepper;
+          if (sensorVal == 0) {
+            digitalWrite(9, HIGH);  //DISABLE CH A
+            analogWrite(3, 0);      //stop Move CH A
+            digitalWrite(8, HIGH);  //DISABLE CH B
+            analogWrite(11, 0);     //stop Move CH B
+            delay(delaylegnth);
             break;
           }
           if (currentMillis - previousMillis >= delaylegnth) {
@@ -120,7 +136,11 @@ void loop() {
           }
         }
         if (i == nbstep) {
-          stopStepper;
+          digitalWrite(9, HIGH);  //DISABLE CH A
+          analogWrite(3, 0);      //stop Move CH A
+          digitalWrite(8, HIGH);  //DISABLE CH B
+          analogWrite(11, 0);     //stop Move CH B
+          delay(delaylegnth);
           break;
         }
       }
@@ -128,12 +148,3 @@ void loop() {
     }// end sensor if
   }// end BT if
 }// end loop
-
-void stopStepper() {
-  digitalWrite(9, HIGH);  //DISABLE CH A
-  analogWrite(3, 0);      //stop Move CH A
-  digitalWrite(8, HIGH);  //DISABLE CH B
-  analogWrite(11, 0);     //stop Move CH B
-  Serial.println("stop");
-  delay(delaylegnth);
-}
