@@ -1,6 +1,6 @@
 clear 
 
-a = arduino('com13','uno','libraries','I2C');
+a = arduino('com8','uno','libraries','I2C');
 %  digitalWrite(12, LOW); //Establishes backward direction of Channel A
 %  digitalWrite(9, LOW);   //Disengage the Brake for Channel A
 %  analogWrite(3, 123);   //Spins the motor on Channel A at half speed
