@@ -1,3 +1,7 @@
+#include <DFRobot_RTU.h>
+
+#include <DFRobot_BloodOxygen_S.h>
+
 /*!
   * @file  gainHeartbeatSPO2.ino
   * @n experiment phenomena: get the heart rate and blood oxygenation, during the update the data obtained does not change
