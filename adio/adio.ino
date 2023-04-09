@@ -1,5 +1,3 @@
-#include <DFRobot_RTU.h>
-
 
 /* Analog and Digital Input and Output Server for MATLAB     */
 /* Giampiero Campa, Copyright 2013 The MathWorks, Inc        */
@@ -113,14 +111,17 @@ void loop() {
 			break; /* s=0 taken care of                            */
 		case 1:
 			/* the third received value indicates the value 0 or 1 */
-			if (val>47 && val<50) {
+			if (val>47 && val<51) {
 				/* set pin mode */
 				if (val==48) {
 					pinMode(pin,INPUT);
 				}
-				else {
+				else if(val==49) {
 					pinMode(pin,OUTPUT);
 				}
+        else{
+          pinMode(pin,INPUT_PULLUP);
+        }
 			}
 			s=-1;  /* we are done with CHANGE PIN so go to -1      */
 			break; /* s=1 taken care of                            */
