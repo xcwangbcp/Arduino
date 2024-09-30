@@ -2,7 +2,7 @@ int  sensorVal=5;
 void setup() {
   // put your setup code here, to run once:
   // establish the omron reader pins
-  pinMode(7, INPUT_PULLUP); //read the omron sensor
+  pinMode(7, INPUT); //read the omron sensor
   // Configure bluetooth connection rate
   Serial.begin(9600);
 }
