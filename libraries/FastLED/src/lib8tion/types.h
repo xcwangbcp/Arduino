@@ -1,9 +1,15 @@
+/// @file types.h
+/// Defines fractional types used for lib8tion functions
+
 #pragma once
 
 #include <stdint.h>
-#include "namespace.h"
+#include "fl/namespace.h"
 
 FASTLED_NAMESPACE_BEGIN
+
+/// @addtogroup lib8tion
+/// @{
 
 ///////////////////////////////////////////////////////////////////////
 ///
@@ -38,6 +44,10 @@ typedef int8_t    sfract7;
 /// Range is 0 to 0.99998474121 in steps of 0.00001525878.  
 /// Should be interpreted as unsigned 65536ths.
 typedef uint16_t  fract16;
+
+typedef int32_t   sfract31; ///< ANSI: signed long _Fract. 31 bits int, 1 bit fraction
+
+typedef uint32_t  fract32;   ///< ANSI: unsigned long _Fract. 32 bits int, 32 bits fraction
 
 /// ANSI: signed _Fract.
 /// Range is -0.99996948242 to 0.99996948242 in steps of 0.00003051757.  
@@ -77,5 +87,6 @@ typedef union {
 } IEEE754binary32_t;
 
 /// @} FractionalTypes
+/// @} lib8tion
 
 FASTLED_NAMESPACE_END

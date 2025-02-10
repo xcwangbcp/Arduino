@@ -1,6 +1,8 @@
+#pragma once
 #ifndef __INC_FASTSPI_LED2_H
 #define __INC_FASTSPI_LED2_H
 
+#include <stdint.h>
 
 /// @file FastLED.h
 /// central include file for FastLED, defines the CFastLED class/object
@@ -14,13 +16,13 @@
 /// * 1 digit for the major version
 /// * 3 digits for the minor version
 /// * 3 digits for the patch version
-#define FASTLED_VERSION 3007008
+#define FASTLED_VERSION 3009013
 #ifndef FASTLED_INTERNAL
 #  ifdef  FASTLED_SHOW_VERSION
 #    ifdef FASTLED_HAS_PRAGMA_MESSAGE
-#      pragma message "FastLED version 3.007.008"
+#      pragma message "FastLED version 3.009.013"
 #    else
-#      warning FastLED version 3.007.007  (Not really a warning, just telling you here.)
+#      warning FastLED version 3.009.013  (Not really a warning, just telling you here.)
 #    endif
 #  endif
 #endif
@@ -48,9 +50,9 @@
 #include <OctoWS2811.h>
 #endif
 
-#include <stdint.h>
 
-#include "force_inline.h"
+
+#include "fl/force_inline.h"
 #include "cpp_compat.h"
 
 #include "fastled_config.h"
@@ -80,11 +82,13 @@
 
 #include "fastspi.h"
 #include "chipsets.h"
+#include "fl/engine_events.h"
 
 FASTLED_NAMESPACE_BEGIN
 
-
-
+// Backdoor to get the size of the CLedController object. The one place
+// that includes this just uses extern to declare the function.
+uint16_t cled_contoller_size();
 
 /// LED chipsets with SPI interface
 enum ESPIChipsets {
@@ -100,6 +104,9 @@ enum ESPIChipsets {
 	DOTSTAR,  ///< APA102 LED chipset alias
 	DOTSTARHD, ///< APA102HD LED chipset alias
 	APA102HD, ///< APA102 LED chipset with 5-bit gamma correction
+	HD107,  /// Same as APA102, but in turbo 40-mhz mode.
+	HD107HD,  /// Same as APA102HD, but in turbo 40-mhz mode.
+
 };
 
 /// Smart Matrix Library controller type
@@ -188,6 +195,10 @@ class WS2812 : public WS2812Controller800Khz<DATA_PIN, RGB_ORDER> {};
 /// @brief WS2815 controller class.
 template<uint8_t DATA_PIN, EOrder RGB_ORDER>
 class WS2815 : public WS2815Controller<DATA_PIN, RGB_ORDER> {};
+
+/// @brief WS2816 controller class.
+template <uint8_t DATA_PIN, EOrder RGB_ORDER>
+class WS2816 : public WS2816Controller<DATA_PIN, RGB_ORDER> {};
 
 /// @brief WS2852 controller class.
 /// @copydetails WS2812Controller800Khz
@@ -325,14 +336,6 @@ enum EBlockChipsets {
 #endif
 };
 
-#if defined(LIB8_ATTINY)
-#define NUM_CONTROLLERS 2
-#else
-/// Unknown NUM_CONTROLLERS definition. Unused elsewhere in the library?
-/// @todo Remove?
-#define NUM_CONTROLLERS 8
-#endif
-
 /// Typedef for a power consumption calculation function. Used within
 /// CFastLED for rescaling brightness before sending the LED data to
 /// the strip with CFastLED::show().
@@ -358,6 +361,10 @@ class CFastLED {
 public:
 	CFastLED();
 
+	// Useful when you want to know when an event like onFrameBegin or onFrameEnd is happening.
+	// This is disabled on AVR to save space.
+	void addListener(fl::EngineEvents::Listener *listener) { fl::EngineEvents::addListener(listener); }
+	void removeListener(fl::EngineEvents::Listener *listener) { fl::EngineEvents::removeListener(listener); }
 
 	/// Add a CLEDController instance to the world.  Exposed to the public to allow people to implement their own
 	/// CLEDController objects or instances.  There are two ways to call this method (as well as the other addLeds()
@@ -434,6 +441,9 @@ public:
 	// Both DOTSTARHD and APA102HD use the same controller class
 	_FL_MAP_CLOCKED_CHIPSET(DOTSTARHD, APA102ControllerHD)
 	_FL_MAP_CLOCKED_CHIPSET(APA102HD, APA102ControllerHD)
+
+	_FL_MAP_CLOCKED_CHIPSET(HD107, APA102Controller)
+	_FL_MAP_CLOCKED_CHIPSET(HD107HD, APA102ControllerHD)
 
 	_FL_MAP_CLOCKED_CHIPSET(SK9822, SK9822Controller)
 	_FL_MAP_CLOCKED_CHIPSET(SK9822HD, SK9822ControllerHD)
@@ -801,11 +811,11 @@ public:
 
 	/// Get the number of leds in the first controller
 	/// @returns the number of LEDs in the first controller
-	int size() { return (*this)[0].size(); }
+	int size();
 
 	/// Get a pointer to led data for the first controller
 	/// @returns pointer to the CRGB buffer for the first controller
-	CRGB *leds() { return (*this)[0].leds(); }
+	CRGB *leds();
 };
 
 /// Alias of the FastLED instance for legacy purposes
@@ -832,3 +842,15 @@ extern CFastLED FastLED;
 FASTLED_NAMESPACE_END
 
 #endif
+
+#ifdef FASTLED_UI
+// As a convenience, include the UI headers and bring them into the global namespace
+#include "fl/ui.h"
+using fl::UIButton;
+using fl::UICheckbox;
+using fl::UINumberField;
+using fl::UISlider;
+#define FASTLED_TITLE(text) fl::UITitle g_title(text)
+#define FASTLED_DESCRIPTION(text) fl::UIDescription g_description(text)
+#endif // FASTLED_UI
+

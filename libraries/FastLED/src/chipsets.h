@@ -1,16 +1,40 @@
 #ifndef __INC_CHIPSETS_H
 #define __INC_CHIPSETS_H
 
-#include "FastLED.h"
 #include "pixeltypes.h"
 #include "five_bit_hd_gamma.h"
-#include "force_inline.h"
+#include "fl/force_inline.h"
 #include "pixel_iterator.h"
+#include "crgb.h"
+#include "eorder.h"
+
+
+
+#ifndef FASTLED_CLOCKLESS_USES_NANOSECONDS
+ #if defined(FASTLED_TEENSY4)
+   #define FASTLED_CLOCKLESS_USES_NANOSECONDS 1
+ #elif defined(ESP32)
+   #include "third_party/espressif/led_strip/src/enabled.h"
+   // RMT 5.1 driver converts from nanoseconds to RMT ticks.
+   #if FASTLED_RMT5
+	 #define FASTLED_CLOCKLESS_USES_NANOSECONDS 1
+   #else
+   	 #define FASTLED_CLOCKLESS_USES_NANOSECONDS 0
+   #endif
+ #else
+   #define FASTLED_CLOCKLESS_USES_NANOSECONDS 0
+ #endif  // FASTLED_TEENSY4
+#endif  // FASTLED_CLOCKLESS_USES_NANOSECONDS
+
+
+#ifdef __IMXRT1062__
+#include "platforms/arm/k20/clockless_objectfled.h"
+#endif
 
 /// @file chipsets.h
 /// Contains the bulk of the definitions for the various LED chipsets supported.
 
-FASTLED_NAMESPACE_BEGIN
+
 
 /// @defgroup Chipsets LED Chipset Controllers
 /// Implementations of ::CLEDController classes for various led chipsets.
@@ -24,6 +48,8 @@ FASTLED_NAMESPACE_BEGIN
 #include <SoftwareSerial.h>
 
 #define HAS_PIXIE
+
+FASTLED_NAMESPACE_BEGIN
 
 /// Adafruit Pixie controller class
 /// @tparam DATA_PIN the pin to write data out on
@@ -68,12 +94,15 @@ protected:
 // 		STREAM.begin(115200);
 // 	}
 // };
+
+FASTLED_NAMESPACE_END
 #endif
 #endif
 
 // Emulution layer to support RGBW leds on RGB controllers. This works by creating
 // a side buffer dedicated for the RGBW data. The RGB data is then converted to RGBW
 // and sent to the delegate controller for rendering as if it were RGB data.
+FASTLED_NAMESPACE_BEGIN
 template <
 	typename CONTROLLER,
 	EOrder RGB_ORDER = GRB>  // Default on WS2812>
@@ -81,42 +110,78 @@ class RGBWEmulatedController
     : public CPixelLEDController<RGB_ORDER, CONTROLLER::LANES_VALUE,
                                  CONTROLLER::MASK_VALUE> {
   public:
+    // ControllerT is a helper class.  It subclasses the device controller class
+    // and has three methods to call the three protected methods we use.
+    // This is janky, but redeclaring public methods protected in a derived class
+    // is janky, too.
+
+    // N.B., byte order must be RGB.
+	typedef CONTROLLER ControllerBaseT;
+    class ControllerT : public CONTROLLER {
+        friend class RGBWEmulatedController<CONTROLLER, RGB_ORDER>;
+        void *callBeginShowLeds(int size) { return ControllerBaseT::beginShowLeds(size); }
+        void callShow(CRGB *data, int nLeds, uint8_t brightness) {
+            ControllerBaseT::show(data, nLeds, brightness);
+        }
+        void callEndShowLeds(void *data) { ControllerBaseT::endShowLeds(data); }
+    };
+
+
     static const int LANES = CONTROLLER::LANES_VALUE;
     static const uint32_t MASK = CONTROLLER::MASK_VALUE;
 
     // The delegated controller must do no reordering.
-    static_assert(RGB == CONTROLLER::RGB_ORDER_VALUE);
+    static_assert(RGB == CONTROLLER::RGB_ORDER_VALUE, "The delegated controller MUST NOT do reordering");
 
     RGBWEmulatedController(const Rgbw& rgbw = RgbwDefault()) {
         this->setRgbw(rgbw);
     };
     ~RGBWEmulatedController() { delete[] mRGBWPixels; }
 
-    virtual void showPixels(PixelController<RGB_ORDER, LANES, MASK> &pixels) {
+	virtual void *beginShowLeds(int size) override {
+		return mController.callBeginShowLeds(Rgbw::size_as_rgb(size));
+	}
+
+	virtual void endShowLeds(void *data) override {
+		return mController.callEndShowLeds(data);
+	}
+
+    virtual void showPixels(PixelController<RGB_ORDER, LANES, MASK> &pixels) override {
         // Ensure buffer is large enough
         ensureBuffer(pixels.size());
-        // This version sent down to the real controller.
-        PixelController<RGB, LANES, MASK> pixels_device(pixels);
-        pixels_device.mScale = CRGB(255, 255, 255); // No scaling because we do that.
-        pixels_device.mData = reinterpret_cast<uint8_t *>(mRGBWPixels);
-        pixels_device.mLen = mNumRGBWLeds;
-        pixels_device.mLenRemaining = mNumRGBWLeds;
+		Rgbw rgbw = this->getRgbw();
         uint8_t *data = reinterpret_cast<uint8_t *>(mRGBWPixels);
-        PixelIterator iterator = pixels.as_iterator(this->getRgbw());
-        while (iterator.has(1)) {
+        while (pixels.has(1)) {
             pixels.stepDithering();
-            iterator.loadAndScaleRGBW(data, data + 1, data + 2, data + 3);
+            pixels.loadAndScaleRGBW(rgbw, data, data + 1, data + 2, data + 3);
             data += 4;
-            iterator.advanceData();
+            pixels.advanceData();
         }
-        // cast to base class to get around protected/private access issues
-        CPixelLEDController<RGB, LANES, MASK> &base = mController;
-        base.showPixels(pixels_device);
+
+		// Force the device controller to a state where it passes data through
+		// unmodified: color correction, color temperature, dither, and brightness
+		// (passed as an argument to show()).  Temporarily enable the controller,
+		// show the LEDs, and disable it again.
+		//
+		// The device controller is in the global controller list, so if we 
+		// don't keep it disabled, it will refresh again with unknown brightness,
+		// temperature, etc.
+
+		mController.setCorrection(CRGB(255, 255, 255));
+		mController.setTemperature(CRGB(255, 255, 255));
+		mController.setDither(DISABLE_DITHER);
+
+		mController.setEnabled(true);
+		mController.callShow(mRGBWPixels, Rgbw::size_as_rgb(pixels.size()), 255);
+		mController.setEnabled(false);
     }
 
   private:
     // Needed by the interface.
-    void init() override {}
+    void init() override {
+		mController.init();
+		mController.setEnabled(false);
+	}
 
     void ensureBuffer(int32_t num_leds) {
         if (num_leds != mNumRGBLeds) {
@@ -125,17 +190,22 @@ class RGBWEmulatedController
             // In the case of src data not a multiple of 3, then we need to
             // add pad bytes so that the delegate controller doesn't walk off the end
             // of the array and invoke a buffer overflow panic.
-            mNumRGBWLeds = (num_leds * 4 + 2) / 3; // Round up to nearest multiple of 3
-            size_t extra = mNumRGBWLeds % 3 ? 1 : 0;
+            uint32_t new_size = Rgbw::size_as_rgb(num_leds);
             delete[] mRGBWPixels;
-            mRGBWPixels = new CRGB[mNumRGBWLeds + extra];
+            mRGBWPixels = new CRGB[new_size];
+			// showPixels may never clear the last two pixels.
+			for (uint32_t i = 0; i < new_size; i++) {
+				mRGBWPixels[i] = CRGB(0, 0, 0);
+			}
+
+			mController.setLeds(mRGBWPixels, new_size);
         }
     }
 
     CRGB *mRGBWPixels = nullptr;
     int32_t mNumRGBLeds = 0;
     int32_t mNumRGBWLeds = 0;
-    CONTROLLER mController; // Real controller.
+    ControllerT mController; // Real controller.
 };
 
 /// @defgroup ClockedChipsets Clocked Chipsets
@@ -320,7 +390,7 @@ class APA102Controller : public CPixelLEDController<RGB_ORDER> {
 		} while(nDWords--);
 	}
 
-	inline void writeLed(uint8_t brightness, uint8_t b0, uint8_t b1, uint8_t b2) __attribute__((always_inline)) {
+	FASTLED_FORCE_INLINE void writeLed(uint8_t brightness, uint8_t b0, uint8_t b1, uint8_t b2) {
 #ifdef FASTLED_SPI_BYTE_ONLY
 		mSPI.writeByte(0xE0 | brightness);
 		mSPI.writeByte(b0);
@@ -335,7 +405,7 @@ class APA102Controller : public CPixelLEDController<RGB_ORDER> {
 #endif
 	}
 
-	inline void write2Bytes(uint8_t b1, uint8_t b2) __attribute__((always_inline)) {
+	FASTLED_FORCE_INLINE void write2Bytes(uint8_t b1, uint8_t b2) {
 #ifdef FASTLED_SPI_BYTE_ONLY
 		mSPI.writeByte(b1);
 		mSPI.writeByte(b2);
@@ -347,21 +417,20 @@ class APA102Controller : public CPixelLEDController<RGB_ORDER> {
 public:
 	APA102Controller() {}
 
-	virtual void init() {
+	virtual void init() override {
 		mSPI.init();
 	}
 
 protected:
 	/// @copydoc CPixelLEDController::showPixels()
-	virtual void showPixels(PixelController<RGB_ORDER> & pixels) {
-		PixelIterator iterator = pixels.as_iterator(this->getRgbw());
+	virtual void showPixels(PixelController<RGB_ORDER> & pixels) override {
 		switch (GAMMA_CORRECTION_MODE) {
 			case kFiveBitGammaCorrectionMode_Null: {
-				showPixelsDefault(iterator);
+				showPixelsDefault(pixels);
 				break;
 			}
 			case kFiveBitGammaCorrectionMode_BitShift: {
-				showPixelsGammaBitShift(iterator);
+				showPixelsGammaBitShift(pixels);
 				break;
 			}
 		}
@@ -370,8 +439,22 @@ protected:
 private:
 
 	static inline void getGlobalBrightnessAndScalingFactors(
-		    PixelIterator& pixels,
+		    PixelController<RGB_ORDER> & pixels,
 		    uint8_t* out_s0, uint8_t* out_s1, uint8_t* out_s2, uint8_t* out_brightness) {
+#if FASTLED_HD_COLOR_MIXING
+		uint8_t brightness;
+		pixels.getHdScale(out_s0, out_s1, out_s2, &brightness);
+		struct Math {
+			static uint16_t map(uint16_t x, uint16_t in_min, uint16_t in_max, uint16_t out_min, uint16_t out_max) {
+				const uint16_t run = in_max - in_min;
+				const uint16_t rise = out_max - out_min;
+				const uint16_t delta = x - in_min;
+				return (delta * rise) / run + out_min;
+			}
+		};
+		*out_brightness = Math::map(brightness, 0, 255, 0, 31);
+		return;
+#else
 		uint8_t s0, s1, s2;
 		pixels.loadAndScaleRGB(&s0, &s1, &s2);
 #if FASTLED_USE_GLOBAL_BRIGHTNESS == 1
@@ -383,15 +466,16 @@ private:
 		s2 = (maxBrightness * s2 + (brightness >> 1)) / brightness;
 #else
 		const uint8_t brightness = 0x1F;
-#endif
+#endif  // FASTLED_USE_GLOBAL_BRIGHTNESS
 		*out_s0 = s0;
 		*out_s1 = s1;
 		*out_s2 = s2;
 		*out_brightness = static_cast<uint8_t>(brightness);
+#endif  // FASTLED_HD_COLOR_MIXING
 	}
 
 	// Legacy showPixels implementation.
-	inline void showPixelsDefault(PixelIterator& pixels) {
+	inline void showPixelsDefault(PixelController<RGB_ORDER> & pixels) {
 		mSPI.select();
 		uint8_t s0, s1, s2, global_brightness;
 		getGlobalBrightnessAndScalingFactors(pixels, &s0, &s1, &s2, &global_brightness);
@@ -409,7 +493,7 @@ private:
 		mSPI.release();
 	}
 
-	inline void showPixelsGammaBitShift(PixelIterator& pixels) {
+	inline void showPixelsGammaBitShift(PixelController<RGB_ORDER> & pixels) {
 		mSPI.select();
 		startBoundary();
 		while (pixels.has(1)) {
@@ -500,6 +584,37 @@ class SK9822ControllerHD : public APA102Controller<
 };
 
 
+/// HD107 is just the APA102 with a default 40Mhz clock rate.
+template <
+	uint8_t DATA_PIN,
+	uint8_t CLOCK_PIN,
+	EOrder RGB_ORDER = RGB,
+	uint32_t SPI_SPEED = DATA_RATE_MHZ(40)
+>
+class HD107Controller : public APA102Controller<
+	DATA_PIN,
+	CLOCK_PIN,
+	RGB_ORDER,
+	SPI_SPEED,
+	kFiveBitGammaCorrectionMode_Null,
+	0x00000000,
+	0x00000000
+> {};
+
+/// HD107HD is just the APA102HD with a default 40Mhz clock rate.
+template <
+	uint8_t DATA_PIN,
+	uint8_t CLOCK_PIN,
+	EOrder RGB_ORDER = RGB,
+	uint32_t SPI_SPEED = DATA_RATE_MHZ(40)\
+>
+class HD107HDController : public APA102ControllerHD<
+	DATA_PIN,
+	CLOCK_PIN,
+	RGB_ORDER,
+	SPI_SPEED> {
+};
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -519,7 +634,7 @@ class P9813Controller : public CPixelLEDController<RGB_ORDER> {
 
 	void writeBoundary() { mSPI.writeWord(0); mSPI.writeWord(0); }
 
-	inline void writeLed(uint8_t r, uint8_t g, uint8_t b) __attribute__((always_inline)) {
+	FASTLED_FORCE_INLINE void writeLed(uint8_t r, uint8_t g, uint8_t b) {
 		FASTLED_REGISTER uint8_t top = 0xC0 | ((~b & 0xC0) >> 2) | ((~g & 0xC0) >> 4) | ((~r & 0xC0) >> 6);
 		mSPI.writeByte(top); mSPI.writeByte(b); mSPI.writeByte(g); mSPI.writeByte(r);
 	}
@@ -664,17 +779,17 @@ class LPD1886Controller1250Khz_8bit : public ClocklessController<DATA_PIN, 2 * F
 /// WS2812 controller class @ 800 KHz.
 /// @tparam DATA_PIN the data pin for these LEDs
 /// @tparam RGB_ORDER the RGB ordering for these LEDs
-template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB>
+template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
 class WS2812Controller800Khz : public ClocklessController<DATA_PIN, 2 * FMUL, 5 * FMUL, 3 * FMUL, RGB_ORDER> {};
 
 /// WS2815 controller class @ 400 KHz.
 /// @copydetails WS2812Controller800Khz
-template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB>
+template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
 class WS2815Controller : public ClocklessController<DATA_PIN, 2 * FMUL, 9 * FMUL, 4 * FMUL, RGB_ORDER> {};
 
 /// WS2811 controller class @ 800 KHz.
 /// @copydetails WS2812Controller800Khz
-template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB>
+template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
 class WS2811Controller800Khz : public ClocklessController<DATA_PIN, 3 * FMUL, 4 * FMUL, 3 * FMUL, RGB_ORDER> {};
 
 /// DP1903 controller class @ 800 KHz.
@@ -689,12 +804,12 @@ class DP1903Controller400Khz : public ClocklessController<DATA_PIN, 4 * FMUL, 16
 
 /// WS2813 controller class.
 /// @copydetails WS2812Controller800Khz
-template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB>                                                             //not tested
+template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>                                                             //not tested
 class WS2813Controller : public ClocklessController<DATA_PIN, 3 * FMUL, 4 * FMUL, 3 * FMUL, RGB_ORDER> {};
 
 /// WS2811 controller class @ 400 KHz.
 /// @copydetails WS2812Controller800Khz
-template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB>
+template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
 class WS2811Controller400Khz : public ClocklessController<DATA_PIN, 4 * FMUL, 10 * FMUL, 6 * FMUL, RGB_ORDER> {};
 
 /// SK6822 controller class.
@@ -769,14 +884,72 @@ class UCS1912Controller : public ClocklessController<DATA_PIN, 2 * FMUL, 8 * FMU
 
 #else
 
+// Allow overclocking of the clockless family of leds. 1.2 would be
+// 20% overclocking. In tests WS2812 can be overclocked at 20%, but
+// various manufacturers may be different.  This is a global value
+// which is overridable by each supported chipset.
+#ifdef FASTLED_LED_OVERCLOCK
+#warning "FASTLED_LED_OVERCLOCK has been changed to FASTLED_OVERCLOCK. Please update your code."
+#define FASTLED_OVERCLOCK FASTLED_LED_OVERCLOCK
+#endif
+
+#ifndef FASTLED_OVERCLOCK
+#define FASTLED_OVERCLOCK 1.0
+#else
+#ifndef FASTLED_OVERCLOCK_SUPPRESS_WARNING
+#warning "FASTLED_OVERCLOCK is now active, #define FASTLED_OVERCLOCK_SUPPRESS_WARNING to disable this warning"
+#endif
+#endif
+
+// WS2812 can be overclocked pretty aggressively, however, there are
+// some excellent articles that you should read about WS2812 overclocking
+// and corruption for a large number of LEDs.
+// https://wp.josh.com/2014/05/16/why-you-should-give-your-neopixel-bits-room-to-breathe/
+// https://wp.josh.com/2014/05/13/ws2812-neopixels-are-not-so-finicky-once-you-get-to-know-them/
+#ifndef FASTLED_OVERCLOCK_WS2812
+#define FASTLED_OVERCLOCK_WS2812 FASTLED_OVERCLOCK
+#endif
+
+#ifndef FASTLED_OVERCLOCK_WS2811
+#define FASTLED_OVERCLOCK_WS2811 FASTLED_OVERCLOCK
+#endif
+
+#ifndef FASTLED_OVERCLOCK_WS2813
+#define FASTLED_OVERCLOCK_WS2813 FASTLED_OVERCLOCK
+#endif
+
+#ifndef FASTLED_OVERCLOCK_WS2815
+#define FASTLED_OVERCLOCK_WS2815 FASTLED_OVERCLOCK
+#endif
+
+#ifndef FASTLED_OVERCLOCK_SK6822
+#define FASTLED_OVERCLOCK_SK6822 FASTLED_OVERCLOCK
+#endif
+
+#ifndef FASTLED_OVERCLOCK_SK6812
+#define FASTLED_OVERCLOCK_SK6812 FASTLED_OVERCLOCK
+#endif
+
 /// Calculates the number of cycles for the clockless chipset (which may differ from CPU cycles)
 /// @see ::NS()
-#ifdef FASTLED_TEENSY4
+#if FASTLED_CLOCKLESS_USES_NANOSECONDS
 // just use raw nanosecond values for the teensy4
 #define C_NS(_NS) _NS
 #else
 #define C_NS(_NS) (((_NS * ((CLOCKLESS_FREQUENCY / 1000000L)) + 999)) / 1000)
 #endif
+
+// Allow overclocking various LED chipsets in the clockless family.
+// Clocked chips like the APA102 don't need this because they allow
+// you to control the clock speed directly.
+#define C_NS_WS2812(_NS) (C_NS(int(_NS / FASTLED_OVERCLOCK_WS2812)))
+#define C_NS_WS2811(_NS) (C_NS(int(_NS / FASTLED_OVERCLOCK_WS2811)))
+#define C_NS_WS2813(_NS) (C_NS(int(_NS / FASTLED_OVERCLOCK_WS2813)))
+#define C_NS_WS2815(_NS) (C_NS(int(_NS / FASTLED_OVERCLOCK_WS2815)))
+#define C_NS_SK6822(_NS) (C_NS(int(_NS / FASTLED_OVERCLOCK_SK6822)))
+#define C_NS_SK6812(_NS) (C_NS(int(_NS / FASTLED_OVERCLOCK_SK6812)))
+
+
 
 // At T=0        : the line is raised hi to start a bit
 // At T=T1       : the line is dropped low to transmit a zero bit
@@ -784,6 +957,8 @@ class UCS1912Controller : public ClocklessController<DATA_PIN, 2 * FMUL, 8 * FMU
 // At T=T1+T2+T3 : the cycle is concluded (next bit can be sent)
 //
 // Python script to calculate the values for T1, T2, and T3 for FastLED:
+// Note: there is a discussion on whether this python script is correct or not:
+//  https://github.com/FastLED/FastLED/issues/1806
 //
 //  print("Enter the values of T0H, T0L, T1H, T1L, in nanoseconds: ")
 //  T0H = int(input("  T0H: "))
@@ -838,22 +1013,64 @@ class TM1809Controller800Khz : public ClocklessController<DATA_PIN, C_NS(350), C
 
 // WS2811 - 320ns, 320ns, 640ns
 template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
-class WS2811Controller800Khz : public ClocklessController<DATA_PIN, C_NS(320), C_NS(320), C_NS(640), RGB_ORDER> {};
+class WS2811Controller800Khz : public ClocklessController<DATA_PIN, C_NS_WS2811(320), C_NS_WS2811(320), C_NS_WS2811(640), RGB_ORDER> {};
 
 // WS2813 - 320ns, 320ns, 640ns
-template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB>
-class WS2813Controller : public ClocklessController<DATA_PIN, C_NS(320), C_NS(320), C_NS(640), RGB_ORDER> {};
+template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
+class WS2813Controller : public ClocklessController<DATA_PIN, C_NS_WS2813(320), C_NS_WS2813(320), C_NS_WS2813(640), RGB_ORDER> {};
 
+#ifndef FASTLED_WS2812_T1
+#define FASTLED_WS2812_T1 250
+#endif
+
+#ifndef FASTLED_WS2812_T2
+#define FASTLED_WS2812_T2 625
+#endif
+
+#ifndef FASTLED_WS2812_T3
+#define FASTLED_WS2812_T3 375
+#endif
+
+
+#if defined(__IMXRT1062__) && !defined(FASTLED_NOT_USES_OBJECTFLED)
+#if defined(FASTLED_USES_OBJECTFLED)
+#warning "FASTLED_USES_OBJECTFLED is now implicit for Teensy 4.0/4.1 for WS2812 and is no longer needed."
+#endif
+template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
+class WS2812Controller800Khz:
+	public fl::ClocklessController_ObjectFLED_WS2812<
+		DATA_PIN,
+		RGB_ORDER> {
+ public:
+    typedef fl::ClocklessController_ObjectFLED_WS2812<DATA_PIN, RGB_ORDER> Base;
+	WS2812Controller800Khz(): Base(FASTLED_OVERCLOCK) {}
+};
+#elif defined(FASTLED_USES_ESP32S3_I2S)
+#include "platforms/esp/32/clockless_i2s_esp32s3.h"
+template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
+class WS2812Controller800Khz:
+	public fl::ClocklessController_I2S_Esp32_WS2812<
+		DATA_PIN,
+		RGB_ORDER
+	> {};
+#else
 // WS2812 - 250ns, 625ns, 375ns
 template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
-class WS2812Controller800Khz : public ClocklessController<DATA_PIN, C_NS(250), C_NS(625), C_NS(375), RGB_ORDER> {};
+class WS2812Controller800Khz : public ClocklessController<
+	DATA_PIN,
+	C_NS_WS2812(FASTLED_WS2812_T1),
+	C_NS_WS2812(FASTLED_WS2812_T2),
+	C_NS_WS2812(FASTLED_WS2812_T3),
+	RGB_ORDER> {};
+#endif  // defined(FASTLED_USES_OBJECTFLED)
+
 
 // WS2811@400khz - 800ns, 800ns, 900ns
 template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
-class WS2811Controller400Khz : public ClocklessController<DATA_PIN, C_NS(800), C_NS(800), C_NS(900), RGB_ORDER> {};
+class WS2811Controller400Khz : public ClocklessController<DATA_PIN, C_NS_WS2811(800), C_NS_WS2811(800), C_NS_WS2811(900), RGB_ORDER> {};
 
 template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
-class WS2815Controller : public ClocklessController<DATA_PIN, C_NS(250), C_NS(1090), C_NS(550), RGB_ORDER> {};
+class WS2815Controller : public ClocklessController<DATA_PIN, C_NS_WS2815(250), C_NS_WS2815(1090), C_NS_WS2815(550), RGB_ORDER> {};
 
 // 750NS, 750NS, 750NS
 template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB>
@@ -873,10 +1090,10 @@ class LPD1886Controller1250Khz_8bit : public ClocklessController<DATA_PIN, C_NS(
 
 
 template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB>
-class SK6822Controller : public ClocklessController<DATA_PIN, C_NS(375), C_NS(1000), C_NS(375), RGB_ORDER> {};
+class SK6822Controller : public ClocklessController<DATA_PIN, C_NS_SK6822(375), C_NS_SK6822(1000), C_NS_SK6822(375), RGB_ORDER> {};
 
 template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB>
-class SK6812Controller : public ClocklessController<DATA_PIN, C_NS(300), C_NS(300), C_NS(600), RGB_ORDER> {};
+class SK6812Controller : public ClocklessController<DATA_PIN, C_NS_SK6812(300), C_NS_SK6812(300), C_NS_SK6812(600), RGB_ORDER> {};
 
 template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB>
 class SM16703Controller : public ClocklessController<DATA_PIN, C_NS(300), C_NS(600), C_NS(300), RGB_ORDER> {};
@@ -889,6 +1106,117 @@ template <uint8_t DATA_PIN, EOrder RGB_ORDER = RGB>
 class UCS1912Controller : public ClocklessController<DATA_PIN, C_NS(250), C_NS(1000), C_NS(350), RGB_ORDER> {};
 #endif
 /// @} ClocklessChipsets
+
+
+// WS2816 - is an emulated controller that emits 48 bit pixels by forwarding
+// them to a platform specific WS2812 controller.  The WS2812 controller
+// has to output twice as many 24 bit pixels.
+template <uint8_t DATA_PIN, EOrder RGB_ORDER = GRB>
+class WS2816Controller
+    : public CPixelLEDController<RGB_ORDER, 
+                                 WS2812Controller800Khz<DATA_PIN, RGB>::LANES_VALUE,
+                                 WS2812Controller800Khz<DATA_PIN, RGB>::MASK_VALUE> {
+
+public:
+
+	// ControllerT is a helper class.  It subclasses the device controller class
+	// and has three methods to call the three protected methods we use.
+	// This is janky, but redeclaring public methods protected in a derived class
+	// is janky, too.
+
+    // N.B., byte order must be RGB.
+	typedef WS2812Controller800Khz<DATA_PIN, RGB> ControllerBaseT;
+	class ControllerT : public ControllerBaseT {
+		friend class WS2816Controller<DATA_PIN, RGB_ORDER>;
+		void *callBeginShowLeds(int size) { return ControllerBaseT::beginShowLeds(size); }
+		void callShow(CRGB *data, int nLeds, uint8_t brightness) {
+			ControllerBaseT::show(data, nLeds, brightness);
+		}
+		void callEndShowLeds(void *data) { ControllerBaseT::endShowLeds(data); }
+	};
+
+    static const int LANES = ControllerT::LANES_VALUE;
+    static const uint32_t MASK = ControllerT::MASK_VALUE;
+
+    WS2816Controller() {}
+    ~WS2816Controller() {
+        mController.setLeds(nullptr, 0);
+        delete [] mData;
+    }
+
+    virtual void *beginShowLeds(int size) override {
+        mController.setEnabled(true);
+		void *result = mController.callBeginShowLeds(2 * size);
+        mController.setEnabled(false);
+        return result;
+    }
+
+    virtual void endShowLeds(void *data) override {
+        mController.setEnabled(true);
+		mController.callEndShowLeds(data);
+        mController.setEnabled(false);
+    }
+
+    virtual void showPixels(PixelController<RGB_ORDER, LANES, MASK> &pixels) override {
+        // Ensure buffer is large enough
+        ensureBuffer(pixels.size());
+
+		// expand and copy all the pixels
+		size_t out_index = 0;
+        while (pixels.has(1)) {
+            pixels.stepDithering();
+
+			uint16_t s0, s1, s2;
+            pixels.loadAndScale_WS2816_HD(&s0, &s1, &s2);
+			uint8_t b0_hi = s0 >> 8;
+			uint8_t b0_lo = s0 & 0xFF;
+			uint8_t b1_hi = s1 >> 8;
+			uint8_t b1_lo = s1 & 0xFF;
+			uint8_t b2_hi = s2 >> 8;
+			uint8_t b2_lo = s2 & 0xFF;
+
+			mData[out_index] = CRGB(b0_hi, b0_lo, b1_hi);
+			mData[out_index + 1] = CRGB(b1_lo, b2_hi, b2_lo);
+
+            pixels.advanceData();
+			out_index += 2;
+        }
+
+		// ensure device controller won't modify color values
+        mController.setCorrection(CRGB(255, 255, 255));
+        mController.setTemperature(CRGB(255, 255, 255));
+        mController.setDither(DISABLE_DITHER);
+
+		// output the data stream
+        mController.setEnabled(true);
+#ifdef BOUNCE_SUBCLASS
+		mController.callShow(mData, 2 * pixels.size(), 255);
+#else
+        mController.show(mData, 2 * pixels.size(), 255);
+#endif
+        mController.setEnabled(false);
+    }
+
+private:
+    void init() override {
+        mController.init();
+        mController.setEnabled(false);
+    }
+
+    void ensureBuffer(int size_8bit) {
+        int size_16bit = 2 * size_8bit;
+        if (mController.size() != size_16bit) {
+            delete [] mData;
+            CRGB *new_leds = new CRGB[size_16bit];
+			mData = new_leds;
+            mController.setLeds(new_leds, size_16bit);
+        }
+    }
+
+    CRGB *mData = 0;
+    ControllerT mController;
+};
+
 
 #endif
 /// @} Chipsets

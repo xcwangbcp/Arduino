@@ -25,10 +25,17 @@
 
 #pragma once
 
-#include "esp_idf_version.h"
+#include "platforms/esp/esp_version.h"
+#include "third_party/espressif/led_strip/src/enabled.h"
 
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
-#include "idf4_clockless_rmt_esp32.h"
-#else
-#include "idf5_clockless_rmt_esp32.h"
+#if !FASTLED_ESP32_HAS_RMT
+#error "How did we get here?"
 #endif
+
+#if FASTLED_ESP32_HAS_RMT
+#if !FASTLED_RMT5
+#include "rmt_4/idf4_clockless_rmt_esp32.h"
+#else
+#include "rmt_5/idf5_clockless_rmt_esp32.h"
+#endif
+#endif  // FASTLED_ESP32_HAS_RMT

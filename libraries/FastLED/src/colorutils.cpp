@@ -7,10 +7,46 @@
 #include <stdint.h>
 #include <math.h>
 
+
 #include "FastLED.h"
+#include "fl/xymap.h"
+#include "fl/unused.h"
+
+#if __has_include(<assert.h>)
+#include <assert.h>
+#else
+#define assert(x) ((void)0)
+#endif
+
+using namespace fl;
+
+// Legacy XY function. This is a weak symbol that can be overridden by the user.
+uint16_t XY(uint8_t x, uint8_t y) __attribute__((weak));
+
+uint16_t XY(uint8_t x, uint8_t y) {
+    FASTLED_UNUSED(x);
+    FASTLED_UNUSED(y);
+    assert(false);  // The user didn't provide an XY function, so we'll assert here.
+    return 0;
+}
 
 FASTLED_NAMESPACE_BEGIN
 
+
+// uint16_t XY(uint8_t x, uint8_t y) {
+//   return 0;
+// }
+// make this a weak symbol
+
+
+namespace {
+    uint16_t xy_legacy_wrapper(uint16_t x, uint16_t y,
+                               uint16_t width, uint16_t height) {
+        FASTLED_UNUSED(width);
+        FASTLED_UNUSED(height);
+        return XY(x, y);
+    }
+}
 
 
 void fill_solid( struct CRGB * targetArray, int numToFill,
@@ -241,12 +277,6 @@ void fade_raw( CRGB* leds, uint16_t num_leds, uint8_t fadeBy)
     nscale8( leds, num_leds, 255 - fadeBy);
 }
 
-/// Unused alias of nscale8(CRGB*, uint16_t, uint8_t)
-/// @todo Remove this or add a declaration? This is not listed in the colorutils.h header.
-void nscale8_raw( CRGB* leds, uint16_t num_leds, uint8_t scale)
-{
-    nscale8( leds, num_leds, scale);
-}
 
 void nscale8( CRGB* leds, uint16_t num_leds, uint8_t scale)
 {
@@ -408,11 +438,6 @@ CHSV* blend( const CHSV* src1, const CHSV* src2, CHSV* dest, uint16_t count, fra
 
 
 
-/// Forward declaration of the function "XY" which must be provided by
-/// the application for use in two-dimensional filter functions.
-uint16_t XY( uint8_t, uint8_t);// __attribute__ ((weak));
-
-
 // blur1d: one-dimensional blur filter. Spreads light to 2 line neighbors.
 // blur2d: two-dimensional blur filter. Spreads light to 8 XY neighbors.
 //
@@ -443,14 +468,21 @@ void blur1d( CRGB* leds, uint16_t numLeds, fract8 blur_amount)
     }
 }
 
-void blur2d( CRGB* leds, uint8_t width, uint8_t height, fract8 blur_amount)
+void blur2d( CRGB* leds, uint8_t width, uint8_t height, fract8 blur_amount, const XYMap& xymap)
 {
-    blurRows(leds, width, height, blur_amount);
-    blurColumns(leds, width, height, blur_amount);
+    blurRows(leds, width, height, blur_amount, xymap);
+    blurColumns(leds, width, height, blur_amount, xymap);
 }
 
-void blurRows( CRGB* leds, uint8_t width, uint8_t height, fract8 blur_amount)
+void blur2d( CRGB* leds, uint8_t width, uint8_t height, fract8 blur_amount)
 {
+    XYMap xy = XYMap::constructWithUserFunction(width, height, xy_legacy_wrapper);
+    blur2d(leds, width, height, blur_amount, xy);   
+}
+
+void blurRows( CRGB* leds, uint8_t width, uint8_t height, fract8 blur_amount, const XYMap& xyMap)
+{
+
 /*    for( uint8_t row = 0; row < height; row++) {
         CRGB* rowbase = leds + (row * width);
         blur1d( rowbase, width, blur_amount);
@@ -462,20 +494,20 @@ void blurRows( CRGB* leds, uint8_t width, uint8_t height, fract8 blur_amount)
     for( uint8_t row = 0; row < height; row++) {
         CRGB carryover = CRGB::Black;
         for( uint8_t i = 0; i < width; i++) {
-            CRGB cur = leds[XY(i,row)];
+            CRGB cur = leds[xyMap.mapToIndex(i,row)];
             CRGB part = cur;
             part.nscale8( seep);
             cur.nscale8( keep);
             cur += carryover;
-            if( i) leds[XY(i-1,row)] += part;
-            leds[XY(i,row)] = cur;
+            if( i) leds[xyMap.mapToIndex(i-1,row)] += part;
+            leds[xyMap.mapToIndex(i,row)] = cur;
             carryover = part;
         }
     }
 }
 
 // blurColumns: perform a blur1d on each column of a rectangular matrix
-void blurColumns(CRGB* leds, uint8_t width, uint8_t height, fract8 blur_amount)
+void blurColumns(CRGB* leds, uint8_t width, uint8_t height, fract8 blur_amount, const XYMap& xyMap)
 {
     // blur columns
     uint8_t keep = 255 - blur_amount;
@@ -483,13 +515,13 @@ void blurColumns(CRGB* leds, uint8_t width, uint8_t height, fract8 blur_amount)
     for( uint8_t col = 0; col < width; ++col) {
         CRGB carryover = CRGB::Black;
         for( uint8_t i = 0; i < height; ++i) {
-            CRGB cur = leds[XY(col,i)];
+            CRGB cur = leds[xyMap.mapToIndex(col,i)];
             CRGB part = cur;
             part.nscale8( seep);
             cur.nscale8( keep);
             cur += carryover;
-            if( i) leds[XY(col,i-1)] += part;
-            leds[XY(col,i)] = cur;
+            if( i) leds[xyMap.mapToIndex(col,i-1)] += part;
+            leds[xyMap.mapToIndex(col,i)] = cur;
             carryover = part;
         }
     }
@@ -754,7 +786,7 @@ CRGB ColorFromPalette( const TProgmemRGBPalette16& pal, uint8_t index, uint8_t b
     uint8_t hi4 = lsrX4(index);
     uint8_t lo4 = index & 0x0F;
 
-    CRGB entry   =  FL_PGM_READ_DWORD_NEAR( &(pal[0]) + hi4 );
+    CRGB entry(FL_PGM_READ_DWORD_NEAR( &(pal[0]) + hi4 ));
     
 
     uint8_t red1   = entry.red;
@@ -938,7 +970,7 @@ CRGB ColorFromPalette( const TProgmemRGBPalette32& pal, uint8_t index, uint8_t b
 #endif
     uint8_t lo3 = index & 0x07;
     
-    CRGB entry = FL_PGM_READ_DWORD_NEAR( &(pal[0]) + hi5);
+    CRGB entry(FL_PGM_READ_DWORD_NEAR( &(pal[0]) + hi5));
     
     uint8_t red1   = entry.red;
     uint8_t green1 = entry.green;
@@ -1271,14 +1303,14 @@ CHSV ColorFromPalette( const CHSVPalette256& pal, uint8_t index, uint8_t brightn
 }
 
 
-void UpscalePalette(const struct CRGBPalette16& srcpal16, struct CRGBPalette256& destpal256)
+void UpscalePalette(const class CRGBPalette16& srcpal16, class CRGBPalette256& destpal256)
 {
     for( int i = 0; i < 256; ++i) {
         destpal256[(uint8_t)(i)] = ColorFromPalette( srcpal16, i);
     }
 }
 
-void UpscalePalette(const struct CHSVPalette16& srcpal16, struct CHSVPalette256& destpal256)
+void UpscalePalette(const class CHSVPalette16& srcpal16, class CHSVPalette256& destpal256)
 {
     for( int i = 0; i < 256; ++i) {
         destpal256[(uint8_t)(i)] = ColorFromPalette( srcpal16, i);
@@ -1286,7 +1318,7 @@ void UpscalePalette(const struct CHSVPalette16& srcpal16, struct CHSVPalette256&
 }
 
 
-void UpscalePalette(const struct CRGBPalette16& srcpal16, struct CRGBPalette32& destpal32)
+void UpscalePalette(const class CRGBPalette16& srcpal16, class CRGBPalette32& destpal32)
 {
     for( uint8_t i = 0; i < 16; ++i) {
         uint8_t j = i * 2;
@@ -1295,7 +1327,7 @@ void UpscalePalette(const struct CRGBPalette16& srcpal16, struct CRGBPalette32& 
     }
 }
 
-void UpscalePalette(const struct CHSVPalette16& srcpal16, struct CHSVPalette32& destpal32)
+void UpscalePalette(const class CHSVPalette16& srcpal16, class CHSVPalette32& destpal32)
 {
     for( uint8_t i = 0; i < 16; ++i) {
         uint8_t j = i * 2;
@@ -1304,14 +1336,14 @@ void UpscalePalette(const struct CHSVPalette16& srcpal16, struct CHSVPalette32& 
     }
 }
 
-void UpscalePalette(const struct CRGBPalette32& srcpal32, struct CRGBPalette256& destpal256)
+void UpscalePalette(const class CRGBPalette32& srcpal32, class CRGBPalette256& destpal256)
 {
     for( int i = 0; i < 256; ++i) {
         destpal256[(uint8_t)(i)] = ColorFromPalette( srcpal32, i);
     }
 }
 
-void UpscalePalette(const struct CHSVPalette32& srcpal32, struct CHSVPalette256& destpal256)
+void UpscalePalette(const class CHSVPalette32& srcpal32, class CHSVPalette256& destpal256)
 {
     for( int i = 0; i < 256; ++i) {
         destpal256[(uint8_t)(i)] = ColorFromPalette( srcpal32, i);
