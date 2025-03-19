@@ -27,7 +27,7 @@ void loop() {
   if (sensorValue==LOW && lastSensorValue == HIGH) {
     // 如果大于零，点亮LED
     digitalWrite(ledPin, HIGH);
-    delay(100);
+    delay(5000);
     digitalWrite(ledPin, LOW);
     digitalWrite(intanPin, HIGH);
   } else {

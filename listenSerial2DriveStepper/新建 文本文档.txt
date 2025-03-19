@@ -1,0 +1,5 @@
+ s = serialport("COM6",9600);
+ writeline(s, "food reward");
+ response = readline(s);
+disp(response);
+delete(s)

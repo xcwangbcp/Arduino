@@ -29,32 +29,28 @@ void loop(){
  
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
-
-  digitalWrite(12, HIGH);   //Sets direction of CH A
+  digitalWrite(12, HIGH);//Sets direction of CH A
   analogWrite(3, 255);   //Moves CH A
   
   delay(delaylegnth);
   
   digitalWrite(9, HIGH);  //DISABLE CH A
-  digitalWrite(8, LOW); //ENABLE CH B
-
-  digitalWrite(13, LOW);   //Sets direction of CH B
+  digitalWrite(8, LOW);   //ENABLE CH B
+  digitalWrite(13, LOW);  //Sets direction of CH B
   analogWrite(11, 255);   //Moves CH B
   
   delay(delaylegnth);
   
   digitalWrite(9, LOW);  //ENABLE CH A
   digitalWrite(8, HIGH); //DISABLE CH B
-
-  digitalWrite(12, LOW);   //Sets direction of CH A
+  digitalWrite(12, LOW); //Sets direction of CH A
   analogWrite(3, 255);   //Moves CH A
   
   delay(delaylegnth);
     
   digitalWrite(9, HIGH);  //DISABLE CH A
-  digitalWrite(8, LOW); //ENABLE CH B
-
-  digitalWrite(13, HIGH);   //Sets direction of CH B
+  digitalWrite(8, LOW);   //ENABLE CH B
+  digitalWrite(13, HIGH); //Sets direction of CH B
   analogWrite(11, 255);   //Moves CH B
   
   delay(delaylegnth);
