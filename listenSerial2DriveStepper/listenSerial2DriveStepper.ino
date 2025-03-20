@@ -1,8 +1,8 @@
-#include <Stepper.h>
+#include "L298P_Stepper.h"
 
 // 定义步进电机的步数和引脚
-const int stepsPerRevolution = 200;  // 步进电机每转的步数
-Stepper myStepper(stepsPerRevolution, 12, 13, 3, 11);// 官方版的motor shield
+const int stepsPerRevolution = 200;                          // 步进电机每转的步数
+L298P_Stepper myStepper(9, 8, 12, 13, 3, 11);  // 官方版的motor shield 9, 8, 12, 13, 3, 11；     盗版或者新版9, 8, 12, 13, 10, 11
 
 // 标志位，用于指示是否收到串口信息
 bool messageReceived = false;
@@ -22,6 +22,7 @@ void loop() {
   if (messageReceived) {
     driveStepper();
     messageReceived = false;  // 重置标志位
+    myStepper.stop();
   }
 }
 
@@ -42,6 +43,8 @@ void driveStepper() {
   int steps = stepsPerRevolution * (45.0 / 360.0);
   // 驱动步进电机旋转
   myStepper.step(steps);
+  
   // 打印步进电机旋转信息
   Serial.println("Stepper motor rotated 45 degrees.");
-}    
+  //myStepper.stop;
+}
